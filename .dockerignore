@@ -1,0 +1,16 @@
+# Reproductibilité depuis un clone neuf : rien de ce qui est produit localement
+# ne doit entrer dans le contexte de build, sinon l'image dépend de la machine
+# du développeur.
+.git
+.gitignore
+target
+**/target
+docs
+k8s
+compose.yaml
+*.log
+.env
+*.private.*
+dependency-check-report*
+trivy-report.json
+zap-report.*

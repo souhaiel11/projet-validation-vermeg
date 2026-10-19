@@ -1,0 +1,36 @@
+# Exécution locale du projet de validation.
+# APPLICATION INTENTIONNELLEMENT VULNÉRABLE — BANC D'ESSAI UNIQUEMENT.
+#
+# Le port n'est publié que sur la boucle locale de l'hôte : le service n'est
+# joignable ni depuis le réseau local, ni depuis l'extérieur.
+
+services:
+  projet-validation-vermeg:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: projet-validation-vermeg:local
+    container_name: projet-validation-vermeg
+    ports:
+      - "127.0.0.1:8085:8080"
+    networks:
+      pfe-network:
+        aliases:
+          # Alias réseau attendu par zapTargetUrl dans le Jenkinsfile.
+          # Adresser le service par son NOM DE CONTENEUR au lieu de cet alias
+          # produit un échec silencieux côté ZAP.
+          - projet-validation-vermeg
+    healthcheck:
+      # La HEALTHCHECK est volontairement absente du Dockerfile (défaut VAL-K10).
+      # Elle est placée ici pour que l'exécution locale reste surveillable sans
+      # retirer le défaut que l'optimiseur doit détecter.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep -q '\"status\":\"UP\"'"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    restart: "no"
+
+networks:
+  pfe-network:
+    external: true

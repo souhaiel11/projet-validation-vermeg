@@ -1,0 +1,7 @@
+# Descripteur de déploiement — lu par DescripteurYaml (scénario VAL-D04).
+# Document embarqué dans le jar, jamais fourni par un appelant.
+environnement: banc-essai
+application: projet-validation-vermeg
+cheminSante: /health
+portEcoute: 8080
+avertissement: "PROJET DE VALIDATION INTENTIONNELLEMENT VULNERABLE — BANC D'ESSAI UNIQUEMENT"
