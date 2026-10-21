@@ -1,0 +1,85 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  PROJET DE VALIDATION VERMEG — DOCKERFILE DÉLIBÉRÉMENT DÉFECTUEUX
+#
+#  ⚠ CE FICHIER NE DOIT JAMAIS ÊTRE LE `Dockerfile` DE LA BRANCHE `main`.
+#    Il est destiné à la branche de démonstration `demo/wf5-dockerfile-casse`,
+#    où il porte le nom `Dockerfile`. Sur `main`, l'image réelle reste
+#    constructible : la démonstration de l'optimiseur ne doit pas casser la
+#    chaîne.
+#
+#  DIFFÉRENCE AVEC LE `Dockerfile` DE PRODUCTION
+#    Celui de `main` porte dix MAUVAISES PRATIQUES (VAL-K01 à VAL-K10) : il se
+#    construit sans erreur, et l'optimiseur les détecte par analyse statique.
+#    Celui-ci porte en plus une ERREUR DE CONSTRUCTION RÉELLE (VAL-K11), afin
+#    d'exercer le routage AUTOMATIQUE vers l'optimiseur Dockerfile : seule une
+#    erreur reconnue dans le log de build déclenche ce routage.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Étape 1 — construction ──────────────────────────────────────────────────
+# DÉFAUT VAL-K01 — image de base désignée par un TAG mutable, pas par un DIGEST.
+FROM maven:3.9.5-eclipse-temurin-17 AS builder
+WORKDIR /build
+
+# DÉFAUT VAL-K02 — ADD au lieu de COPY pour un contenu purement local.
+# DÉFAUT VAL-K03 — contexte entier copié avant la résolution des dépendances :
+# la couche Maven est invalidée dès qu'un fichier source change.
+ADD . /build
+
+# DÉFAUT VAL-K04 — l'image est construite depuis du code NON TESTÉ.
+RUN mvn -B clean package -DskipTests
+
+# ── Étape 2 — exécution ─────────────────────────────────────────────────────
+# DÉFAUT VAL-K05 — image d'exécution périmée (octobre 2023), désignée par un tag.
+FROM eclipse-temurin:17.0.9_9-jre-alpine
+
+LABEL org.opencontainers.image.title="projet-validation-vermeg" \
+      org.opencontainers.image.description="PROJET DE VALIDATION INTENTIONNELLEMENT VULNERABLE — BANC D'ESSAI UNIQUEMENT ; donnees synthetiques" \
+      org.opencontainers.image.vendor="PFE 2026 — validation de la plateforme DevSecOps"
+
+WORKDIR /app
+
+# DÉFAUT VAL-K06 — valeur sensible inscrite dans une couche d'image, lisible
+# dans l'historique par quiconque peut tirer l'image du registre.
+ENV VALIDATION_API_TOKEN="demo-token-non-reel-0000000000"
+
+# DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
+# l'image et l'alourdit pour rien.
+# DÉFAUT VAL-K08 — deux instructions RUN là où une seule suffirait.
+RUN apk add --update curl
+RUN apk add --update wget
+
+COPY --from=builder /build/target/runtime/ /app/dependencies/
+
+# ╔════════════════════════════════════════════════════════════════════════╗
+# ║ DÉFAUT VAL-K11 — ERREUR DE CONSTRUCTION RÉELLE                         ║
+# ║                                                                        ║
+# ║ Le nom d'artefact ci-dessous est FAUX : le `pom.xml` produit            ║
+# ║   target/projet-validation-vermeg-1.0.0.jar                             ║
+# ║ (artifactId + version), alors que cette ligne demande                   ║
+# ║   target/projet-validation-vermeg.jar                                   ║
+# ║ sans la version. `docker build` échoue :                                ║
+# ║   « COPY failed: ... no source files were specified »                  ║
+# ║   (ou « failed to compute cache key », selon le moteur de build)        ║
+# ║                                                                        ║
+# ║ POURQUOI CE DÉFAUT PRÉCIS : c'est un motif que la plateforme reconnaît ║
+# ║ dans le log console. Elle le classe « dockerfile » et appelle           ║
+# ║ l'optimiseur Dockerfile d'elle-même, en lui passant l'erreur réelle.    ║
+# ║ Une simple mauvaise pratique ne déclenche jamais ce routage.            ║
+# ║                                                                        ║
+# ║ VARIANTE « ERREUR DE SYNTAXE » : remplacer la ligne par                 ║
+# ║   RUNN echo "instruction inexistante"                                   ║
+# ║ produit « dockerfile parse error ... unknown instruction: RUNN », qui   ║
+# ║ est aussi reconnu et routé vers le même optimiseur. Un seul des deux à  ║
+# ║ la fois : l'erreur de syntaxe est rejetée avant toute instruction COPY. ║
+# ╚════════════════════════════════════════════════════════════════════════╝
+COPY --from=builder /build/target/projet-validation-vermeg.jar /app/application.jar
+
+EXPOSE 8080
+
+# DÉFAUT VAL-K09 — aucune directive USER : le conteneur s'exécute en root.
+# DÉFAUT VAL-K10 — aucune HEALTHCHECK, alors que l'application expose un
+# contrat de santé déterministe sur /health.
+
+ENTRYPOINT ["java", "-Dapp.bind=0.0.0.0", \
+            "-cp", "/app/application.jar:/app/dependencies/*", \
+            "tn.vermeg.validation.App"]

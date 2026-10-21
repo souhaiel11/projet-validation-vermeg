@@ -125,6 +125,56 @@
       <version>2.8.0</version>
     </dependency>
 
+    <!-- ╔════════════════════════════════════════════════════════════════╗
+         ║ VAL-D07 — AUTO-CORRIGEABLE · provenance DIRECT_EXPLICIT          ║
+         ║ commons-compress 1.21 porte CVE-2024-25710 (boucle infinie) et    ║
+         ║ CVE-2024-26308 (épuisement mémoire), corrigées en 1.26.0 — même    ║
+         ║ majeure (1.x), donc dans l'enveloppe auto-corrigeable.            ║
+         ║ Usage authentique : lecture de l'inventaire d'une archive ZIP      ║
+         ║ d'export du référentiel (ArchiveReferentiel).                     ║
+         ║ Périmètre de sûreté : lecture d'un flux fourni par le code, jamais ║
+         ║ par un appelant ; aucune extraction sur disque, aucun chemin       ║
+         ║ d'entrée utilisé pour écrire quoi que ce soit.                     ║
+         ╚═════════════════════════════════════════════════════════════════╝ -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.21</version>
+    </dependency>
+
+    <!-- ╔═════════════════════════════════════════════════════════════════╗
+         ║ VAL-D08 — AUTO-CORRIGEABLE · provenance DIRECT_EXPLICIT          ║
+         ║ bcprov-jdk18on 1.72 porte CVE-2023-33201 (fuite d'information via ║
+         ║ le CertStore LDAP), corrigée en 1.73 — même majeure (1.x).        ║
+         ║ Usage authentique : empreinte SHA-256 d'un contrat, calculée par   ║
+         ║ le fournisseur Bouncy Castle (EmpreinteContrat), en miroir du      ║
+         ║ contrôle de signature hérité déjà présent.                        ║
+         ║ Périmètre de sûreté : aucun CertStore, aucun accès LDAP, aucune    ║
+         ║ vérification de chaîne de certificats — le chemin exploitable de  ║
+         ║ la CVE n'est pas atteignable dans ce projet.                       ║
+         ╚═════════════════════════════════════════════════════════════════╝ -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>1.72</version>
+    </dependency>
+
+    <!-- ╔═════════════════════════════════════════════════════════════════╗
+         ║ VAL-D09 — AUTO-CORRIGEABLE · provenance DIRECT_EXPLICIT          ║
+         ║ jsoup 1.14.3 porte CVE-2022-36033 (contournement de               ║
+         ║ l'assainissement HTML), corrigée en 1.15.3 — même majeure (1.x).  ║
+         ║ Usage authentique : échappement des libellés de contrat avant      ║
+         ║ insertion dans la page HTML (EtiquetteHtml).                       ║
+         ║ Périmètre de sûreté : seul l'échappement d'entités est employé,    ║
+         ║ jamais Jsoup.clean() avec une liste blanche — la CVE porte sur le  ║
+         ║ contournement de cette dernière, qui n'est pas appelée ici.        ║
+         ╚═════════════════════════════════════════════════════════════════╝ -->
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>1.14.3</version>
+    </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

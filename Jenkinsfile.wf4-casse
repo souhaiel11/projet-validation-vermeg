@@ -1,0 +1,116 @@
+// =============================================================================
+// PROJET DE VALIDATION VERMEG — JENKINSFILE DÉLIBÉRÉMENT DÉFECTUEUX
+//
+// ⚠ CE FICHIER NE DOIT JAMAIS ÊTRE LE `Jenkinsfile` DE LA BRANCHE `main`.
+//   Il est destiné à la branche de démonstration `demo/wf4-jenkinsfile-casse`,
+//   où il porte le nom `Jenkinsfile`. Sur `main`, le pipeline réel reste
+//   intact : la démonstration de l'optimiseur ne doit pas casser la chaîne.
+//
+// RAISON D'ÊTRE
+//   Le Jenkinsfile de production fait 84,5 Ko. L'optimiseur Jenkinsfile (WF4)
+//   refuse tout fichier de plus de 60 Ko (« TOO_LARGE ») : il ne peut donc pas
+//   l'analyser. Ce fichier compact (~4 Ko) est la cible analysable.
+//
+// DÉFAUTS DÉLIBÉRÉS — recensés VAL-J04 à VAL-J11, à ne pas corriger dans le
+// dépôt : leur correction est précisément ce que la plateforme doit proposer.
+// =============================================================================
+
+// DÉFAUT VAL-J04 — aucune étiquette d'agent déclarée.
+// L'exécution dépend de la disponibilité des nœuds, pas d'un choix explicite.
+pipeline {
+    agent any
+
+    // DÉFAUT VAL-J05 — aucun `options { }` : ni délai maximal (`timeout`), ni
+    // politique de rétention (`buildDiscarder`). Un build bloqué occupe un
+    // exécuteur indéfiniment et l'historique grossit sans limite.
+
+    environment {
+        // DÉFAUT VAL-J06 — secret en clair dans le Jenkinsfile.
+        // Une valeur sensible écrite ici est lisible par quiconque accède au
+        // dépôt et apparaît dans les logs de build. Le défaut porte sur le
+        // MÉCANISME — un identifiant codé en dur au lieu de `withCredentials`.
+        //
+        // Le format de la valeur est délibérément NON conforme à celui d'un
+        // vrai jeton SonarQube : la détection de secrets de GitHub refuse un
+        // push contenant une chaîne qui ressemble à un jeton réel, même
+        // factice. Rendre la valeur manifestement fausse préserve le défaut
+        // à corriger sans rendre le dépôt impossible à publier.
+        SONAR_TOKEN   = "JETON-SONAR-FACTICE-NE-PAS-UTILISER"
+        REGISTRY_PASS = "motdepasse-factice-non-reel"
+
+        APP_NAME  = 'projet-validation-vermeg'
+        IMAGE_TAG = 'latest'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+                // DÉFAUT VAL-J07 — `sh` sans `returnStatus` ni garde : l'échec
+                // est silencieux parce que `|| true` masque le code de retour.
+                sh 'git rev-parse HEAD || true'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                // DÉFAUT VAL-J08 — appel du wrapper Maven `./mvnw`, ABSENT de
+                // ce dépôt. Jenkins échoue avec « cannot access './mvnw': No
+                // such file or directory ».
+                //
+                // C'est LE défaut qui déclenche le routage automatique :
+                // la plateforme extrait cette erreur du log console, la classe
+                // comme « jenkinsfile », et appelle WF4 d'elle-même en lui
+                // passant l'erreur réelle en priorité absolue. Le correctif
+                // attendu est le remplacement de `./mvnw` par `mvn`.
+                sh './mvnw -B clean package -DskipTests'
+            }
+        }
+
+        stage('Analyse SonarQube') {
+            steps {
+                // DÉFAUT VAL-J09 — le jeton est interpolé en Groovy (guillemets
+                // doubles) : il apparaît en clair dans le log de la commande.
+                // La forme correcte passe par `withCredentials` et des
+                // guillemets simples, pour que le shell lise la variable sans
+                // que Groovy ne la substitue dans la trace.
+                sh "mvn -B sonar:sonar -Dsonar.projectKey=${APP_NAME} -Dsonar.login=${SONAR_TOKEN}"
+            }
+        }
+
+        stage('Image Docker') {
+            steps {
+                // DÉFAUT VAL-J10 — étiquette `latest` mutable : deux builds du
+                // même commit peuvent produire deux images différentes, et les
+                // résultats de scan varient sans qu'une ligne de code n'ait
+                // changé. Le numéro de build ou le SHA du commit est la seule
+                // référence reproductible.
+                sh "docker build -t ${APP_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║ DÉFAUT VAL-J11 — ERREUR DE SYNTAXE GROOVY DÉLIBÉRÉE              ║
+        // ║                                                                  ║
+        // ║ L'accolade fermante du bloc `steps { }` ci-dessous est absente.  ║
+        // ║ Jenkins rejette le pipeline à la lecture, AVANT d'exécuter la    ║
+        // ║ moindre étape :                                                  ║
+        // ║   « WorkflowScript: unexpected token » / « expecting '}' »       ║
+        // ║                                                                  ║
+        // ║ CONSÉQUENCE À CONNAÎTRE : aucun webhook n'est émis, donc aucun   ║
+        // ║ incident n'est créé et le routage automatique ne se déclenche     ║
+        // ║ PAS. Ce défaut s'exerce uniquement en lançant l'optimiseur à la  ║
+        // ║ main depuis l'interface (Outils → optimiseur Jenkinsfile), en    ║
+        // ║ pointant la branche de démonstration.                            ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+        stage('Rapport plateforme') {
+            steps {
+                sh 'echo "rapport envoye a la plateforme"'
+        }
+
+        // DÉFAUT VAL-J12 — aucun `post { }` : pas de nettoyage d'espace de
+        // travail (`cleanWs`), pas de publication des résultats de tests
+        // (`junit`), et aucune notification en cas d'échec.
+    }
+}

@@ -28,6 +28,9 @@ Le projet est construit autour de ces portes — et autour de leurs refus.
 | **VAL-D03** | `commons-io:commons-io` | 2.6 | `DIRECT_EXPLICIT` | CVE-2021-29425 | 2.7 | ✅ **Auto-corrigée.** Troisième positif : prouve que la correction n'est pas câblée sur une dépendance particulière. |
 | **VAL-D04** | `org.yaml:snakeyaml` | 1.33 | `DIRECT_EXPLICIT` | CVE-2022-1471 | **2.0 seulement** | ⛔ **Refus `CROSS_MAJOR_ONLY`.** Un correctif existe, mais il franchit une majeure. |
 | **VAL-D05** | `org.apache.commons:commons-text` | 1.9, **transitive** via `commons-configuration2:2.8.0` | `TRANSITIVE` | CVE-2022-42889 « Text4Shell » (CRITICAL) | 1.10.0 | ⛔ **Refus `TRANSITIVE_NOT_AUTOFIXABLE_V1`.** Le correctif est de même majeure : le refus porte sur la **provenance**, pas sur la disponibilité. |
+| **VAL-D07** | `org.apache.commons:commons-compress` | 1.21 | `DIRECT_EXPLICIT` | CVE-2024-25710 (boucle infinie), CVE-2024-26308 (épuisement mémoire) | 1.26.0 | ✅ **Auto-corrigée.** Même majeure, provenance supportée. Quatrième positif. |
+| **VAL-D08** | `org.bouncycastle:bcprov-jdk18on` | 1.72 | `DIRECT_EXPLICIT` | CVE-2023-33201 (fuite via CertStore LDAP) | 1.73 | ✅ **Auto-corrigée.** Cinquième positif : prouve la correction sur une bibliothèque cryptographique. |
+| **VAL-D09** | `org.jsoup:jsoup` | 1.14.3 | `DIRECT_EXPLICIT` | CVE-2022-36033 (contournement de l'assainissement HTML) | 1.15.3 | ✅ **Auto-corrigée.** Sixième positif. |
 | **VAL-D06** | paquets système de l'image de base | Alpine de `eclipse-temurin:17.0.9_9` | — | CVE de paquets OS (zlib, busybox, openssl selon la base Trivy) | — | 🔍 **Détection seule.** La chaîne n'a aucune stratégie de version d'image. |
 
 ### Pourquoi VAL-D05 est le scénario le plus instructif
@@ -142,18 +145,27 @@ publication : l'analyse est produite par un modèle, mais la proposition n'est
 
 ## 5. Jenkinsfile — optimiseur (WF4)
 
-| Réf. | Défaut | Pourquoi c'en est un |
-|---|---|---|
-| **VAL-J01** | `@Library('pfe-devsecops')` sans version épinglée | Deux builds du même commit peuvent exécuter deux recettes différentes |
-| **VAL-J02** | Aucun délai maximal ni politique de rétention déclarés | Un build bloqué peut occuper un exécuteur indéfiniment |
-| **VAL-J03** | Aucune étiquette d'agent déclarée | L'exécution dépend de la disponibilité des nœuds, pas d'un choix explicite |
+> **Mise à jour (post-réécriture) :** le Jenkinsfile de ce projet a été
+> déplié en pipeline scripté autonome, sans `@Library`, pour la
+> présentation devant le jury (le fichier contient désormais la totalité
+> du pipeline, lisible directement). Deux des trois défauts ci-dessous ne
+> sont plus démontrables sur CE fichier, pour deux raisons différentes —
+> ce tableau le dit plutôt que de le laisser périmé.
 
-**Limite honnête :** la surface d'optimisation d'un Jenkinsfile est
-structurellement réduite dans cette architecture, puisque tout le pipeline vit
-dans la bibliothèque partagée et qu'un projet ne fait que se déclarer. WF4
-récupère donc aussi `pom.xml` et `Dockerfile` comme contexte d'analyse. C'est une
-propriété de l'architecture, pas une faiblesse du projet de validation — mais il
-faut le dire au jury plutôt que de prétendre à un Jenkinsfile riche en défauts.
+| Réf. | Défaut | Pourquoi c'en est un | État sur le Jenkinsfile actuel |
+|---|---|---|---|
+| **VAL-J01** | `@Library('pfe-devsecops')` sans version épinglée | Deux builds du même commit peuvent exécuter deux recettes différentes | ❌ **N/A** — il n'y a plus de `@Library` du tout, donc plus rien à épingler |
+| **VAL-J02** | Aucun délai maximal ni politique de rétention déclarés | Un build bloqué peut occuper un exécuteur indéfiniment | ❌ **Résolu** — `timeout(time: TIMEOUT_PIPELINE_HOURS, unit: 'HOURS')` et `buildDiscarder(logRotator(numToKeepStr: '15'))` sont maintenant déclarés explicitement dans le fichier (ils existaient déjà, cachés dans la bibliothèque) |
+| **VAL-J03** | Aucune étiquette d'agent déclarée | L'exécution dépend de la disponibilité des nœuds, pas d'un choix explicite | ✅ **Intact** — `node { ... }` reste sans étiquette |
+
+**Limite honnête (mise à jour) :** il ne reste qu'**un seul** défaut
+Jenkinsfile démontrable (VAL-J03) sur ce fichier. C'est le prix de la
+lisibilité demandée pour la soutenance : un pipeline entièrement visible
+dans un seul fichier a, par construction, moins de défauts d'architecture
+« bibliothèque partagée » à montrer. WF4 récupère toujours `pom.xml` et
+`Dockerfile` comme contexte d'analyse, qui restent riches en défauts
+(section 4). À dire au jury tel quel, plutôt que de prétendre à trois
+défauts qui ne sont plus que un.
 
 ---
 
@@ -171,8 +183,8 @@ tout n'a rien vérifié.
 | **NC-4** | Déploiement demandé sans provenance d'artefact enregistrée | Classe `TECHNICALLY_IMPOSSIBLE`, motif `DEPLOY_ARTIFACT_PROVENANCE_UNAVAILABLE`, **aucune dérogation possible, y compris administrateur** |
 | **NC-5** | Accès à une route de données sans jeton | `HTTP 401` |
 
-**NC-3 est garanti par construction :** les trois scénarios auto-corrigeables
-(VAL-D01, VAL-D02, VAL-D03) visent tous le même fichier `pom.xml`, donc la même
+**NC-3 est garanti par construction :** les six scénarios auto-corrigeables
+(VAL-D01, VAL-D02, VAL-D03, VAL-D07, VAL-D08, VAL-D09) visent tous le même fichier `pom.xml`, donc la même
 clé de réservation. Lancer deux d'entre eux en parallèle produit nécessairement le
 conflit.
 
@@ -191,7 +203,7 @@ temporairement une assertion de ce fichier dans la branche candidate.
 | Intégration Git / SCM | dépôt, branche `main` | dépôt et révision affichés sur la fiche projet |
 | Intégration Jenkins | `Jenkinsfile` + bibliothèque partagée | étapes du pipeline restituées dans l'onglet Jenkins |
 | Build Maven | `mvn clean verify` | `BUILD SUCCESS` |
-| Tests unitaires | 35 tests JUnit 5 | `tests=35 failures=0 errors=0` |
+| Tests unitaires | 44 tests JUnit 5 | `tests=44 failures=0 errors=0` |
 | Couverture | JaCoCo + import Sonar | ≈ 79 % de lignes |
 | Analyse qualité | SonarQube | six constats, Quality Gate en **ERREUR** |
 | Analyse de composition | OWASP Dependency-Check | CVE des dépendances déclarées et transitives |
@@ -200,7 +212,7 @@ temporairement une assertion de ce fichier dans la branche candidate.
 | Trois états de scan | tous | complet-avec-constats, complet-sans-constat, indisponible |
 | Incident et analyses IA | WF1 | cause racine, risque, faisabilité, guide |
 | Assistance conversationnelle | ChatOps | question sur l'état du projet |
-| Remédiation déterministe | WF6 | VAL-D01, VAL-D02, VAL-D03 |
+| Remédiation déterministe | WF6 | VAL-D01, VAL-D02, VAL-D03, VAL-D07, VAL-D08, VAL-D09 (six positifs) |
 | Refus de remédiation | WF6 | VAL-D04, VAL-D05, VAL-D06 |
 | Vérification de candidat | candidate-verifier | compilation, tests, reconstruction d'image, rescan |
 | Fermeture de sécurité | double rescan | la CVE visée disparaît **et** aucune régression |
@@ -208,7 +220,7 @@ temporairement une assertion de ce fichier dans la branche candidate.
 | Reprise de tentative | backend | identité de tentative régénérée, réservation retenue |
 | Proposition Git | WF2 / WF6 | branche dédiée, un commit, PR ouverte — jamais de poussée sur `main` |
 | Revalidation après PR | WF3 | résultat du build de validation rattaché à la bonne révision |
-| Optimiseur Jenkinsfile | WF4 | VAL-J01 à VAL-J03 |
+| Optimiseur Jenkinsfile | WF4 | VAL-J03 (VAL-J01/J02 résolus par la réécriture en pipeline autonome, voir §5) |
 | Optimiseur Dockerfile | WF5 | VAL-K01 à VAL-K10 |
 | Gouvernance du déploiement | backend | classe, contrôles détaillés, motifs bloquants |
 | Provenance d'artefact | publication ACR | NC-4 tant que l'image n'est pas publiée avec sa provenance |
