@@ -196,8 +196,7 @@ dir(WORKING_DIRECTORY ?: '.') {
 catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                                 sh """
                                     set -e
-                                    chmod +x mvnw
-                                    ./mvnw clean package -B -DskipTests=${skipTests}
+                                                                        mvn clean package -B -DskipTests=${skipTests}
                                 """
 buildStageStatus['build'] = 'SUCCESS'
 }
