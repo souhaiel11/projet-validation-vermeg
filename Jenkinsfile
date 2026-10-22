@@ -1,4 +1,3 @@
-
 import groovy.transform.Field
 
 @Field final String CRED_SONAR_TOKEN    = 'SONAR_TOKEN'
@@ -11,14 +10,12 @@ import groovy.transform.Field
 @Field final String SONAR_HOST_URL = 'http://sonarqube:9000'
 @Field final String SONAR_ANALYSIS_MODE = 'COMMUNITY_EXACT_SHA'
 
-// Alias reseau, pas le nom du conteneur : `pfe-backend` ne se resout plus
-// (conteneur arrete), et l'etape Publish Image (ACR) tombait sur son curl -f.
-@Field final String BACKEND_URL     = 'http://backend:3001'
+@Field final String BACKEND_URL     = 'http://pfe-backend:3001'
 @Field final String N8N_WEBHOOK_URL = 'http://n8n:5678/webhook/jenkins-event'
 
 @Field final String K8S_NAMESPACE    = 'pfe-devsecops'
 @Field final String KUBECONFIG_PATH  = '/var/jenkins_home/.kube/config'
-@Field final String ZAP_IMAGE        = 'zaproxy/zap-stable:latest'
+@Field final String ZAP_IMAGE        = 'zaproxy/zap-stable:2.15.0'
 
 @Field final String JENKINS_REPORT_ROOT = '/shared/reports'
 @Field final String N8N_REPORT_ROOT     = '/home/node/.n8n-files/reports'
@@ -196,8 +193,7 @@ dir(WORKING_DIRECTORY ?: '.') {
 catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                                 sh """
                                     set -e
-                                    chmod +x mvnw
-                                    ./mvnw clean package -B -DskipTests=${skipTests}
+                                    mvn clean package -B -DskipTests=${skipTests}
                                 """
 buildStageStatus['build'] = 'SUCCESS'
 }
@@ -289,17 +285,15 @@ echo 'SonarQube: mode branche standard'
 }
                                         sh """
                                             set -e
-                                            set +e
-                                            mvn sonar:sonar -B \
-                                              -DskipTests=true \
-                                              -Djacoco.skip=true \
-                                              -Dsonar.projectKey="${projectKey}" \
-                                              -Dsonar.projectName="${projectKey}" \
-                                              -Dsonar.host.url="${SONAR_HOST_URL}" \
-                                              -Dsonar.token="\$SONAR_TOKEN" \
+                                            mvn sonar:sonar -B \\
+                                              -DskipTests=true \\
+                                              -Djacoco.skip=true \\
+                                              -Dsonar.projectKey="${projectKey}" \\
+                                              -Dsonar.projectName="${projectKey}" \\
+                                              -Dsonar.host.url="${SONAR_HOST_URL}" \\
+                                              -Dsonar.token="\$SONAR_TOKEN" \\
                                               ${prArgs} > sonar-analysis.log 2>&1
                                             SONAR_STATUS=\$?
-                                            set -e
                                             cat sonar-analysis.log
                                             if [ "\$SONAR_STATUS" -ne 0 ]; then
                                               echo "SONAR_ANALYSIS_FAILED exit=\$SONAR_STATUS"
@@ -327,7 +321,7 @@ String raw = withEnv(["SONAR_CE_TASK_ID=${ceTaskId}", "SONAR_EXACT_HOST=${SONAR_
 sh(
                                                 script: '''
                                                     set +x
-                                                    curl -sf --max-time 10 -u "$SONAR_TOKEN:" \
+                                                    curl -sf --max-time 10 -u "$SONAR_TOKEN:" \\
                                                       "$SONAR_EXACT_HOST/api/ce/task?id=$SONAR_CE_TASK_ID"
                                                 ''',
 returnStdout: true
@@ -401,8 +395,8 @@ sh(
 returnStdout: true,
                                             script: '''
                                                 set -e
-                                                curl -sS -f --max-time 20 \
-                                                  -H "X-Internal-Secret: $N8N_INTERNAL_SECRET" \
+                                                curl -sS -f --max-time 20 \\
+                                                  -H "X-Internal-Secret: $N8N_INTERNAL_SECRET" \\
                                                   "$PFE_BACKEND_URL/api/projects/internal/by-job/$PFE_JOB_NAME"
                                             '''
 )
@@ -460,7 +454,7 @@ sh(
 returnStdout: true,
                                             script: '''
                                                 set -e
-                                                docker image inspect "$PFE_LOCAL_REF" \
+                                                docker image inspect "$PFE_LOCAL_REF" \\
                                                   --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
                                             '''
 )
@@ -491,7 +485,7 @@ sh(
 returnStatus: true,
                                                     script: '''
                                                         set -e
-                                                        echo "$ACR_PASSWORD" | docker login "$PFE_REGISTRY.azurecr.io" \
+                                                        echo "$ACR_PASSWORD" | docker login "$PFE_REGISTRY.azurecr.io" \\
                                                           --username "$ACR_USERNAME" --password-stdin >/dev/null 2>&1
                                                         docker tag "$PFE_LOCAL_REF" "$PFE_REMOTE_REF"
                                                         docker push "$PFE_REMOTE_REF"
@@ -548,33 +542,33 @@ withEnv(["IMAGE_NAME=${IMAGE_NAME}", "IMAGE_TAG=${imageTag}", "REPORT_BASE=${rep
                                             docker save "$IMAGE_NAME:$IMAGE_TAG" -o "$TMP_DIR/image.tar"
 
                                             echo "=== Updating Trivy DB ==="
-                                            docker run --rm -v trivy-cache:/root/.cache \
-                                              aquasec/trivy:latest image --download-db-only || true
+                                            docker run --rm -v trivy-cache:/root/.cache \\
+                                              aquasec/trivy:0.51.2 image --download-db-only || true
 
                                             echo "=== Trivy container ==="
-                                            TRIVY_CID=$(docker create -v trivy-cache:/root/.cache \
-                                              --entrypoint sh aquasec/trivy:latest -c "sleep 1800")
+                                            TRIVY_CID=$(docker create -v trivy-cache:/root/.cache \\
+                                              --entrypoint sh aquasec/trivy:0.51.2 -c "sleep 1800")
                                             docker start "$TRIVY_CID" >/dev/null
                                             docker cp "$TMP_DIR/image.tar" "$TRIVY_CID:/image.tar"
 
                                             echo "=== Trivy scan ==="
-                                            docker exec "$TRIVY_CID" trivy image \
-                                              --input /image.tar \
-                                              --scanners vuln,misconfig \
-                                              --skip-db-update \
-                                              --skip-java-db-update \
-                                              --exit-code 0 \
-                                              --format json \
-                                              --severity CRITICAL,HIGH,MEDIUM \
-                                              --no-progress \
-                                              --timeout 30m \
+                                            docker exec "$TRIVY_CID" trivy image \\
+                                              --input /image.tar \\
+                                              --scanners vuln,misconfig \\
+                                              --skip-db-update \\
+                                              --skip-java-db-update \\
+                                              --exit-code 0 \\
+                                              --format json \\
+                                              --severity CRITICAL,HIGH,MEDIUM \\
+                                              --no-progress \\
+                                              --timeout 30m \\
                                               --output /trivy-report.json || true
 
                                             docker cp "$TRIVY_CID:/trivy-report.json" "$TMP_DIR/trivy-report.json" || true
                                             docker rm -f "$TRIVY_CID" >/dev/null 2>&1 || true
 
                                             if [ ! -s "$TMP_DIR/trivy-report.json" ]; then
-                                              echo '{"SchemaVersion":2,"Results":[],"status":"trivy_report_missing"}' > "$TMP_DIR/trivy-report.json"
+                                              echo \'{"SchemaVersion":2,"Results":[],"status":"trivy_report_missing"}\' > "$TMP_DIR/trivy-report.json"
                                             fi
 
                                             cp "$TMP_DIR/trivy-report.json" "$REPORT_BASE/trivy-report.json"
@@ -611,12 +605,12 @@ withEnv([
 
                                                 # Le secret ne doit JAMAIS atteindre un fichier : Jenkins exécute
                                                 # ce script via `sh -xe`, qui écrit chaque commande DÉVELOPPÉE sur
-                                                # stderr. Le settings.xml ci-dessous ne contient qu'une RÉFÉRENCE
-                                                # (${env.NVD_API_KEY}), interpolée par Maven à l'exécution -- rien
+                                                # stderr. Le settings.xml ci-dessous ne contient qu\'une RÉFÉRENCE
+                                                # (${env.NVD_API_KEY}), interpolée par Maven à l\'exécution -- rien
                                                 # de secret dans la ligne de commande, donc rien dans la trace, le
                                                 # fichier, ni `ps`.
                                                 SETTINGS_NVD="$REPORT_BASE/.odc-settings.xml"
-                                                cat > "$SETTINGS_NVD" <<'ODC_SETTINGS'
+                                                cat > "$SETTINGS_NVD" <<\'ODC_SETTINGS\'
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
   <profiles>
     <profile>
@@ -630,35 +624,35 @@ withEnv([
 </settings>
 ODC_SETTINGS
 
-                                                # Fait brut, capturé sans condition : « l'étape a été atteinte »,
+                                                # Fait brut, capturé sans condition : « l\'étape a été atteinte »,
                                                 # distinct de « un rapport existe » et de « le scan a réussi ».
                                                 echo executed > "$REPORT_BASE/owasp.scanExecuted"
 
                                                 set +e
                                                 {
                                                   echo "=== Step 1: NVD update (clé API injectée via settings, jamais en ligne de commande) ==="
-                                                  timeout 20m mvn org.owasp:dependency-check-maven:$ODC_VERSION:update-only \
-                                                    -s "$SETTINGS_NVD" \
-                                                    -DdataDirectory="$ODC_DATA" \
-                                                    -DnvdApiDelay=2000 \
-                                                    -DnvdMaxRetryCount=15 \
-                                                    -DnvdValidForHours=168 \
-                                                    -DretireJsAnalyzerEnabled=false \
-                                                    -DnodeAuditAnalyzerEnabled=false \
-                                                    -DossindexAnalyzerEnabled=false \
+                                                  timeout 20m mvn org.owasp:dependency-check-maven:$ODC_VERSION:update-only \\
+                                                    -s "$SETTINGS_NVD" \\
+                                                    -DdataDirectory="$ODC_DATA" \\
+                                                    -DnvdApiDelay=2000 \\
+                                                    -DnvdMaxRetryCount=15 \\
+                                                    -DnvdValidForHours=168 \\
+                                                    -DretireJsAnalyzerEnabled=false \\
+                                                    -DnodeAuditAnalyzerEnabled=false \\
+                                                    -DossindexAnalyzerEnabled=false \\
                                                     -B
                                                   echo $? > "$REPORT_BASE/owasp.nvdUpdate.exitcode"
 
                                                   echo "=== Step 2: dependency scan (cache local) ==="
-                                                  timeout 20m mvn org.owasp:dependency-check-maven:$ODC_VERSION:check \
-                                                    -Dformat=ALL \
-                                                    -DfailBuildOnCVSS="$FAIL_CVSS" \
-                                                    -DfailOnError=false \
-                                                    -DdataDirectory="$ODC_DATA" \
-                                                    -DautoUpdate=false \
-                                                    -DretireJsAnalyzerEnabled=false \
-                                                    -DnodeAuditAnalyzerEnabled=false \
-                                                    -DossindexAnalyzerEnabled=false \
+                                                  timeout 20m mvn org.owasp:dependency-check-maven:$ODC_VERSION:check \\
+                                                    -Dformat=ALL \\
+                                                    -DfailBuildOnCVSS="$FAIL_CVSS" \\
+                                                    -DfailOnError=false \\
+                                                    -DdataDirectory="$ODC_DATA" \\
+                                                    -DautoUpdate=false \\
+                                                    -DretireJsAnalyzerEnabled=false \\
+                                                    -DnodeAuditAnalyzerEnabled=false \\
+                                                    -DossindexAnalyzerEnabled=false \\
                                                     -B
                                                   echo $? > "$REPORT_BASE/owasp.exitcode"
                                                 } > "$REPORT_BASE/owasp.log" 2>&1
@@ -670,7 +664,7 @@ ODC_SETTINGS
                                                 if [ -f target/dependency-check-report.json ]; then
                                                   cp target/dependency-check-report.json "$REPORT_BASE/dependency-check-report.json"
                                                 else
-                                                  echo '{"dependencies":[],"status":"owasp_report_missing"}' > "$REPORT_BASE/dependency-check-report.json"
+                                                  echo \'{"dependencies":[],"status":"owasp_report_missing"}\' > "$REPORT_BASE/dependency-check-report.json"
                                                 fi
                                                 [ -f target/dependency-check-report.html ] && cp target/dependency-check-report.html "$REPORT_BASE/" || true
                                                 [ -f target/dependency-check-report.xml ]  && cp target/dependency-check-report.xml  "$REPORT_BASE/" || true
@@ -768,13 +762,13 @@ spec:
           mkdir -p /zap/wrk && cd /zap/wrk
 
           # -silent : évite que ZAP 2.17.0 en mode -daemon ne bloque le thread
-          # de démarrage en téléchargeant ~24 mises à jour d'add-ons avant que
-          # l'API sur :8090 ne soit jamais liée (ZAP_NOT_READY_AFTER_720S).
-          /zap/zap.sh -daemon -host 0.0.0.0 -port 8090 -silent \
-            -config api.disablekey=true \
-            -config api.addrs.addr.name=.* \
-            -config api.addrs.addr.regex=true \
-            -config database.recoverylog=false \
+          # de démarrage en téléchargeant ~24 mises à jour d\'add-ons avant que
+          # l\'API sur :8090 ne soit jamais liée (ZAP_NOT_READY_AFTER_720S).
+          /zap/zap.sh -daemon -host 0.0.0.0 -port 8090 -silent \\
+            -config api.disablekey=true \\
+            -config api.addrs.addr.name=.* \\
+            -config api.addrs.addr.regex=true \\
+            -config database.recoverylog=false \\
             > /zap/wrk/zap.log 2>&1 &
 
           python3 - <<PY
@@ -901,7 +895,7 @@ echo '=== Waiting for ZAP report (up to 36 min) ==='
         kubectl logs "$ZAP_POD" -n "$K8S_NAMESPACE" || true
 
         echo "=== In-pod failure marker (if any) ==="
-        kubectl exec "$ZAP_POD" -n "$K8S_NAMESPACE" -- sh -c 'cat /zap/wrk/zap.failed 2>/dev/null' > "$REPORT_BASE/zap-inpod-failure.txt" 2>/dev/null || true
+        kubectl exec "$ZAP_POD" -n "$K8S_NAMESPACE" -- sh -c \'cat /zap/wrk/zap.failed 2>/dev/null\' > "$REPORT_BASE/zap-inpod-failure.txt" 2>/dev/null || true
         cat "$REPORT_BASE/zap-inpod-failure.txt" 2>/dev/null || true
 
         echo "=== Retrieving reports ==="
@@ -910,7 +904,7 @@ echo '=== Waiting for ZAP report (up to 36 min) ==='
         kubectl cp "$K8S_NAMESPACE/$ZAP_POD:/zap/wrk/zap.log"        "$REPORT_BASE/zap.log"        || true
 
         if [ ! -s "$REPORT_BASE/zap-report.json" ]; then
-          echo '{"site":[],"status":"zap_report_missing"}' > "$REPORT_BASE/zap-report.json"
+          echo \'{"site":[],"status":"zap_report_missing"}\' > "$REPORT_BASE/zap-report.json"
         fi
         true
                                                 '''
@@ -924,12 +918,11 @@ String inPodFailure = sh(script: 'cat "$REPORT_BASE/zap-inpod-failure.txt" 2>/de
 zap.technicalCode = 'ZAP_SCAN_POD_DISAPPEARED'
 zap.diagnosticMessage = inPodFailure ?
 ('ZAP pod créé et scan lancé, mais aucun rapport exploitable produit. Marqueur d\'échec in-pod : ' + inPodFailure.replaceAll('\\s+', ' ').take(400)) :
-'ZAP pod créé et scan lancé, mais aucun rapport exploitable récupéré et le pod n\'a laissé aucun marqueur d\'échec -- le pod n\'était plus joignable au moment de la récupération.'
+'ZAP pod créé et scan lancé, mais aucun rapport exploitable récupéré et le pod n\'était plus joignable au moment de la récupération.'
 }
 
 echo '=== Cleaning up ZAP pod ==='
 sh 'kubectl delete pod "$ZAP_POD" -n "$K8S_NAMESPACE" --ignore-not-found=true || true'
-}
 }
 }
 }
@@ -1100,11 +1093,11 @@ int code = withEnv(["N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}"]) {
 sh(
 returnStatus: true,
                                     script: '''
-                                        curl -sS -o /tmp/n8n_resp.txt -w "%{http_code}" \
-                                          -X POST "$N8N_WEBHOOK_URL" \
-                                          -H "Content-Type: application/json" \
-                                          -H "X-API-Key: $N8N_API_KEY" \
-                                          --data-binary @jenkins-webhook-payload.json \
+                                        curl -sS -o /tmp/n8n_resp.txt -w "%{http_code}" \\
+                                          -X POST "$N8N_WEBHOOK_URL" \\
+                                          -H "Content-Type: application/json" \\
+                                          -H "X-API-Key: $N8N_API_KEY" \\
+                                          --data-binary @jenkins-webhook-payload.json \\
                                           --max-time 20 > /tmp/n8n_code.txt 2>/tmp/n8n_err.txt
                                         CODE=$(cat /tmp/n8n_code.txt)
                                         echo "HTTP $CODE"
