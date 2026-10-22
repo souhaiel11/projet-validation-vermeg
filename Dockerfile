@@ -25,12 +25,14 @@ WORKDIR /build
 # DÉFAUT VAL-K03 — le contexte entier est copié avant la résolution des
 # dépendances. La couche de dépendances Maven est donc invalidée dès qu'un
 # fichier source change, alors que copier pom.xml d'abord la garderait en cache.
-ADD . /build
+COPY pom.xml /build/
+RUN mvn -B dependency:go-offline
+COPY src /build/src
 
 # DÉFAUT VAL-K04 — l'image est construite à partir de code NON TESTÉ.
 # `-DskipTests` permet de produire une image depuis un code dont la suite de
 # tests échoue. `mvn -B -ntp clean verify` fermerait ce chemin.
-RUN mvn -B clean package -DskipTests
+RUN mvn -B -ntp clean verify
 
 # ── Étape 2 — exécution ─────────────────────────────────────────────────────
 # DÉFAUT VAL-K05 — image d'exécution périmée, désignée par un tag.
@@ -51,14 +53,13 @@ WORKDIR /app
 # l'historique de l'image par quiconque peut la tirer du registre, même si une
 # couche ultérieure l'écrase. La valeur ci-dessous est factice et n'ouvre aucun
 # accès ; le défaut porte sur le mécanisme, pas sur le secret.
-ENV VALIDATION_API_TOKEN="demo-token-non-reel-0000000000"
+ENV VALIDATION_API_TOKEN=""
 
 # DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
 # l'image et l'alourdit inutilement.
 # DÉFAUT VAL-K08 — deux instructions RUN là où une seule suffirait : deux
 # couches au lieu d'une, pour un gain nul.
-RUN apk add --update curl
-RUN apk add --update wget
+RUN apk add --no-cache curl wget
 
 # MÉCANISME, PAS DÉTAIL D'EMPAQUETAGE — ne pas retirer.
 # Les jars de dépendances sont placés dans l'image parce que Trivy scanne
@@ -77,6 +78,9 @@ EXPOSE 8080
 # DÉFAUT VAL-K10 — aucune HEALTHCHECK, alors que l'application expose un
 # contrat de santé déterministe sur /health.
 
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:8080/actuator/health || exit 1
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+USER appuser
 ENTRYPOINT ["java", "-Dapp.bind=0.0.0.0", \
             "-cp", "/app/application.jar:/app/dependencies/*", \
             "tn.vermeg.validation.App"]
