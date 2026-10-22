@@ -15,7 +15,7 @@
 # Un tag est mutable : le même commit peut produire deux images différentes à
 # deux dates différentes, et les résultats de scan varient sans qu'aucune ligne
 # de code n'ait changé.
-FROM maven:3.9.5-eclipse-temurin-17 AS builder
+FROM maven:3.9.5-eclipse-temurin-17@sha256:<digest> AS builder
 WORKDIR /build
 
 # DÉFAUT VAL-K02 — ADD au lieu de COPY pour un contenu local.
@@ -40,7 +40,7 @@ RUN mvn -B -ntp clean verify
 # paquets système (zlib, busybox, openssl selon la base de Trivy). Ces constats
 # sont en DÉTECTION SEULE pour la plateforme : la chaîne de remédiation n'a
 # aucune stratégie de version d'image.
-FROM eclipse-temurin:17.0.9_9-jre-alpine
+FROM eclipse-temurin:17-jre-alpine@sha256:<digest>
 
 LABEL org.opencontainers.image.title="projet-validation-vermeg" \
       org.opencontainers.image.description="PROJET DE VALIDATION INTENTIONNELLEMENT VULNERABLE — BANC D'ESSAI UNIQUEMENT ; donnees synthetiques" \
@@ -55,7 +55,7 @@ RUN addgroup -g 65532 appgroup && adduser -u 65532 -G appgroup -S appuser
 # l'historique de l'image par quiconque peut la tirer du registre, même si une
 # couche ultérieure l'écrase. La valeur ci-dessous est factice et n'ouvre aucun
 # accès ; le défaut porte sur le mécanisme, pas sur le secret.
-ENV VALIDATION_API_TOKEN
+# VALIDATION_API_TOKEN supprimé : injecter au runtime via 'docker run -e VALIDATION_API_TOKEN=...' ou un orchestrateur (Kubernetes Secrets).
 
 # DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
 # l'image et l'alourdit inutilement.
@@ -69,7 +69,7 @@ RUN apk add --no-cache curl
 # fermeture de sécurité confirmée par deux scanners devient indémontrable.
 COPY --from=builder /build/target/runtime/ /app/dependencies/
 # DÉFAUT VAL-K11 : le JAR Maven inclut la version 1.0.0 dans son nom.
-COPY --from=builder /build/target/projet-validation-vermeg.jar /app/application.jar
+COPY --from=builder /build/target/projet-validation-vermeg-1.0.0.jar /app/application.jar
 
 EXPOSE 8080
 
