@@ -281,6 +281,18 @@
   </dependencies>
 
   <build>
+    <!-- os-maven-plugin : résout os.detected.name/arch au plus tôt. Requis car
+         netty-all tire des artefacts natifs à classifier OS
+         (netty-transport-native-epoll:${os.detected.name}-${os.detected.arch}) ;
+         sans ce plugin, `mvn dependency:go-offline` échoue à résoudre ce classifier.
+         Additif, aucune vulnérabilité, aucun impact sur les scénarios. -->
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.7.1</version>
+      </extension>
+    </extensions>
     <plugins>
       <!-- Versions de plugin toutes épinglées : sans cela Maven résout des
            versions par défaut qui varient entre Jenkins (3.6.3) et le
