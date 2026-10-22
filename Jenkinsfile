@@ -24,8 +24,7 @@ devSecOpsPipeline {
     buildStep = {
         sh '''
             set -e
-            chmod +x mvnw
-            ./mvnw clean package -B -DskipTests=false
+            mvn clean package -B -DskipTests=false
         '''
     }
 }
