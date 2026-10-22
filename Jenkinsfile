@@ -11,7 +11,9 @@ import groovy.transform.Field
 @Field final String SONAR_HOST_URL = 'http://sonarqube:9000'
 @Field final String SONAR_ANALYSIS_MODE = 'COMMUNITY_EXACT_SHA'
 
-@Field final String BACKEND_URL     = 'http://pfe-backend:3001'
+// Alias reseau, pas le nom du conteneur : `pfe-backend` ne se resout plus
+// (conteneur arrete), et l'etape Publish Image (ACR) tombait sur son curl -f.
+@Field final String BACKEND_URL     = 'http://backend:3001'
 @Field final String N8N_WEBHOOK_URL = 'http://n8n:5678/webhook/jenkins-event'
 
 @Field final String K8S_NAMESPACE    = 'pfe-devsecops'
