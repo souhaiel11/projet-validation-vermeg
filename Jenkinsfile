@@ -191,10 +191,11 @@ error("buildType '${buildType}' n'est pas encore supporté par ce pipeline. Seul
 }
 buildStageStatus['build'] = 'FAILED'
 dir(WORKING_DIRECTORY ?: '.') {
-catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                                 sh """
                                     set -e
-                                    mvn clean package -B -DskipTests=${skipTests}
+                                    chmod +x mvnw
+                                    ./mvnw clean package -B -DskipTests=${skipTests}
                                 """
 buildStageStatus['build'] = 'SUCCESS'
 }
@@ -355,7 +356,7 @@ stage('Docker Build') {
 docker.image_tag = "${IMAGE_NAME}:${imageTag}"
 docker.build_status = 'FAILED'
 dir(WORKING_DIRECTORY ?: '.') {
-catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
 if (!(checkoutFullSha ==~ /[a-fA-F0-9]{40}/)) {
 error("OCI_REVISION_UNAVAILABLE: checkoutFullSha est absent ou n'est pas un SHA git complet sur 40 caractères -- refus de construire une image qualifiée de provenance.")
 }

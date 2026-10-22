@@ -65,7 +65,8 @@ RUN apk add --update wget
 # l'IMAGE, pas le dépôt. Sans eux, son analyseur Java ne voit rien et la
 # fermeture de sécurité confirmée par deux scanners devient indémontrable.
 COPY --from=builder /build/target/runtime/ /app/dependencies/
-COPY --from=builder /build/target/projet-validation-vermeg-1.0.0.jar /app/application.jar
+# DÉFAUT VAL-K11 : le JAR Maven inclut la version 1.0.0 dans son nom.
+COPY --from=builder /build/target/projet-validation-vermeg.jar /app/application.jar
 
 EXPOSE 8080
 

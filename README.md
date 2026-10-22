@@ -17,8 +17,8 @@ reproductible et démontrable devant un jury.
 | Dépendances (Trivy + OWASP) | 6 scénarios | **3** | **3** |
 | Code source (SonarQube) | 6 constats | 0 — candidature assistée seulement | — |
 | Application en fonctionnement (ZAP) | 4 constats | 0 — détection seule | — |
-| Dockerfile (optimiseur WF5) | 10 défauts | proposition sous porte déterministe | — |
-| Jenkinsfile (optimiseur WF4) | 3 défauts | proposition sous porte déterministe | — |
+| Dockerfile (optimiseur WF5) | 11 défauts | proposition sous porte déterministe | — |
+| Jenkinsfile (optimiseur WF4) | 2 défauts actuels | proposition sous porte déterministe | — |
 | Contrôles négatifs | 5 | — | **5** |
 
 La matrice complète, scénario par scénario, avec le code de refus attendu pour
@@ -114,3 +114,7 @@ git checkout main && git reset --hard baseline-vulnerable && git push --force-wi
 Chaque défaut porte un marqueur `VAL-xxx` et une explication. Leur correction est
 précisément ce que la plateforme doit produire d'elle-même : la corriger à la
 main viderait la démonstration de son objet.
+
+## Démonstration échec puis correction
+
+Le scénario [VAL-J04 + VAL-K11](docs/SCENARIO_BUILD_ECHEC_PUIS_CORRECTION.md) ajoute deux défauts d’exécution réels : wrapper Maven absent et chemin de JAR incorrect. Les autres mauvaises pratiques ne garantissent pas à elles seules un échec de construction.

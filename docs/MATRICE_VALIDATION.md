@@ -121,7 +121,7 @@ hiérarchisés, et **classés manuels**.
 
 ## 4. Dockerfile — optimiseur (WF5)
 
-Dix défauts délibérés, chacun repéré par un marqueur `DÉFAUT VAL-Kxx` dans le
+Onze défauts délibérés, chacun repéré par un marqueur `DÉFAUT VAL-Kxx` dans le
 fichier.
 
 | Réf. | Défaut | Pourquoi c'en est un |
@@ -136,6 +136,7 @@ fichier.
 | **VAL-K08** | Deux `RUN` là où un seul suffirait | Deux couches pour un gain nul |
 | **VAL-K09** | Aucune directive `USER` | Le conteneur s'exécute en root |
 | **VAL-K10** | Aucune `HEALTHCHECK` | Alors que l'application expose `/health`, déterministe |
+| **VAL-K11** | Le chemin COPY omet la version du JAR produit par Maven | La construction Docker échoue réellement : fichier source introuvable |
 
 Le parcours d'application de WF5 passe par une **porte déterministe** avant
 publication : l'analyse est produite par un modèle, mais la proposition n'est
@@ -157,15 +158,9 @@ publication : l'analyse est produite par un modèle, mais la proposition n'est
 | **VAL-J01** | `@Library('pfe-devsecops')` sans version épinglée | Deux builds du même commit peuvent exécuter deux recettes différentes | ❌ **N/A** — il n'y a plus de `@Library` du tout, donc plus rien à épingler |
 | **VAL-J02** | Aucun délai maximal ni politique de rétention déclarés | Un build bloqué peut occuper un exécuteur indéfiniment | ❌ **Résolu** — `timeout(time: TIMEOUT_PIPELINE_HOURS, unit: 'HOURS')` et `buildDiscarder(logRotator(numToKeepStr: '15'))` sont maintenant déclarés explicitement dans le fichier (ils existaient déjà, cachés dans la bibliothèque) |
 | **VAL-J03** | Aucune étiquette d'agent déclarée | L'exécution dépend de la disponibilité des nœuds, pas d'un choix explicite | ✅ **Intact** — `node { ... }` reste sans étiquette |
+| **VAL-J04** | Appel à un wrapper Maven absent du dépôt | `chmod +x mvnw` échoue avant la compilation | ✅ Défaut bloquant du scénario échec puis correction |
 
-**Limite honnête (mise à jour) :** il ne reste qu'**un seul** défaut
-Jenkinsfile démontrable (VAL-J03) sur ce fichier. C'est le prix de la
-lisibilité demandée pour la soutenance : un pipeline entièrement visible
-dans un seul fichier a, par construction, moins de défauts d'architecture
-« bibliothèque partagée » à montrer. WF4 récupère toujours `pom.xml` et
-`Dockerfile` comme contexte d'analyse, qui restent riches en défauts
-(section 4). À dire au jury tel quel, plutôt que de prétendre à trois
-défauts qui ne sont plus que un.
+**État actuel :** VAL-J03 reste un constat d’architecture ; VAL-J04 est un défaut d’exécution délibéré et corrigeable par WF4. VAL-J01 et VAL-J02 restent non applicables/résolus après le passage au pipeline autonome. Le scénario de construction ne dépend pas du fait que les mauvaises pratiques d’architecture bloquent ou non Jenkins.
 
 ---
 
@@ -220,8 +215,8 @@ temporairement une assertion de ce fichier dans la branche candidate.
 | Reprise de tentative | backend | identité de tentative régénérée, réservation retenue |
 | Proposition Git | WF2 / WF6 | branche dédiée, un commit, PR ouverte — jamais de poussée sur `main` |
 | Revalidation après PR | WF3 | résultat du build de validation rattaché à la bonne révision |
-| Optimiseur Jenkinsfile | WF4 | VAL-J03 (VAL-J01/J02 résolus par la réécriture en pipeline autonome, voir §5) |
-| Optimiseur Dockerfile | WF5 | VAL-K01 à VAL-K10 |
+| Optimiseur Jenkinsfile | WF4 | VAL-J03 et VAL-J04 (VAL-J01/J02 non applicables/résolus) |
+| Optimiseur Dockerfile | WF5 | VAL-K01 à VAL-K11 |
 | Gouvernance du déploiement | backend | classe, contrôles détaillés, motifs bloquants |
 | Provenance d'artefact | publication ACR | NC-4 tant que l'image n'est pas publiée avec sa provenance |
 | Autorisation tracée | backend | motif, accusés, phrase de confirmation, usage unique |
@@ -244,3 +239,7 @@ Les lister est aussi important que lister le reste.
 | Dépendance npm, Python ou Gradle | détection seulement | l'orchestrateur de remédiation est Maven |
 | Règle Sonar `java:S3305` | non démontrable | aucun framework d'injection dans le projet |
 | Déploiement Azure de la base vulnérable | non exécuté | une application volontairement vulnérable ne doit pas être exposée |
+
+## Complément : défauts bloquants de construction
+
+VAL-J04 (wrapper Maven absent) et VAL-K11 (chemin du JAR incorrect) provoquent des erreurs d’exécution réelles. Voir [le scénario de démonstration](SCENARIO_BUILD_ECHEC_PUIS_CORRECTION.md). VAL-J04 est le défaut de construction volontaire corrigeable par WF4.
