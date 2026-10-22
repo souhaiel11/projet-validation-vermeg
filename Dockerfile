@@ -48,18 +48,20 @@ LABEL org.opencontainers.image.title="projet-validation-vermeg" \
 
 WORKDIR /app
 
+RUN addgroup -g 65532 appgroup && adduser -u 65532 -G appgroup -S appuser
+
 # DÉFAUT VAL-K06 — valeur sensible inscrite dans une couche d'image.
 # Une variable d'environnement définie à la construction reste lisible dans
 # l'historique de l'image par quiconque peut la tirer du registre, même si une
 # couche ultérieure l'écrase. La valeur ci-dessous est factice et n'ouvre aucun
 # accès ; le défaut porte sur le mécanisme, pas sur le secret.
-ENV VALIDATION_API_TOKEN=""
+ENV VALIDATION_API_TOKEN
 
 # DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
 # l'image et l'alourdit inutilement.
 # DÉFAUT VAL-K08 — deux instructions RUN là où une seule suffirait : deux
 # couches au lieu d'une, pour un gain nul.
-RUN apk add --no-cache curl wget
+RUN apk add --no-cache curl
 
 # MÉCANISME, PAS DÉTAIL D'EMPAQUETAGE — ne pas retirer.
 # Les jars de dépendances sont placés dans l'image parce que Trivy scanne
@@ -79,8 +81,7 @@ EXPOSE 8080
 # contrat de santé déterministe sur /health.
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:8080/actuator/health || exit 1
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-USER appuser
+USER 65532:65532
 ENTRYPOINT ["java", "-Dapp.bind=0.0.0.0", \
             "-cp", "/app/application.jar:/app/dependencies/*", \
             "tn.vermeg.validation.App"]
