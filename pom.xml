@@ -281,6 +281,13 @@
   </dependencies>
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.7.1</version>
+      </extension>
+    </extensions>
     <plugins>
       <!-- Versions de plugin toutes épinglées : sans cela Maven résout des
            versions par défaut qui varient entre Jenkins (3.6.3) et le
