@@ -7,8 +7,10 @@
 // VISIBLE ici que ce qui doit etre presente et corrige en demonstration :
 // l'etape Build.
 //
-// DEFAUT VAL-J04 (corrige) : `chmod +x mvnw` puis `./mvnw` remplace par `mvn`
-// configure dans Jenkins — le build n'echoue plus sur l'absence du wrapper.
+// DEFAUT VAL-J04 (delibere) : `chmod +x mvnw` puis `./mvnw` alors qu'AUCUN
+// wrapper Maven n'est versionne -> le build echoue (« cannot access mvnw »).
+// C'est precisement ce que WF4 doit corriger (remplacer par le `mvn` configure).
+// Fichier volontairement court : WF4 le regenere de facon fiable.
 // =============================================================================
 @Library('pfe-devsecops') _
 
@@ -20,6 +22,7 @@ devSecOpsPipeline {
     // Etape Build fournie par le projet, VISIBLE et corrigeable par WF4.
     buildCommand = """
         set -e
-        mvn clean package -B -DskipTests=false
+        chmod +x mvnw
+        ./mvnw clean package -B -DskipTests=false
     """
 }

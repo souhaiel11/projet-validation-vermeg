@@ -25,14 +25,12 @@ WORKDIR /build
 # DÉFAUT VAL-K03 — le contexte entier est copié avant la résolution des
 # dépendances. La couche de dépendances Maven est donc invalidée dès qu'un
 # fichier source change, alors que copier pom.xml d'abord la garderait en cache.
-COPY pom.xml /build/
-RUN mvn -B dependency:go-offline
-COPY src /build/src
+ADD . /build
 
 # DÉFAUT VAL-K04 — l'image est construite à partir de code NON TESTÉ.
 # `-DskipTests` permet de produire une image depuis un code dont la suite de
 # tests échoue. `mvn -B -ntp clean verify` fermerait ce chemin.
-RUN mvn -B -ntp clean verify
+RUN mvn -B clean package -DskipTests
 
 # ── Étape 2 — exécution ─────────────────────────────────────────────────────
 # DÉFAUT VAL-K05 — image d'exécution périmée, désignée par un tag.
@@ -53,13 +51,14 @@ WORKDIR /app
 # l'historique de l'image par quiconque peut la tirer du registre, même si une
 # couche ultérieure l'écrase. La valeur ci-dessous est factice et n'ouvre aucun
 # accès ; le défaut porte sur le mécanisme, pas sur le secret.
-ENV VALIDATION_API_TOKEN=""
+ENV VALIDATION_API_TOKEN="demo-token-non-reel-0000000000"
 
 # DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
 # l'image et l'alourdit inutilement.
 # DÉFAUT VAL-K08 — deux instructions RUN là où une seule suffirait : deux
 # couches au lieu d'une, pour un gain nul.
-RUN apk add --no-cache curl wget
+RUN apk add --update curl
+RUN apk add --update wget
 
 # MÉCANISME, PAS DÉTAIL D'EMPAQUETAGE — ne pas retirer.
 # Les jars de dépendances sont placés dans l'image parce que Trivy scanne
@@ -67,7 +66,7 @@ RUN apk add --no-cache curl wget
 # fermeture de sécurité confirmée par deux scanners devient indémontrable.
 COPY --from=builder /build/target/runtime/ /app/dependencies/
 # DÉFAUT VAL-K11 : le JAR Maven inclut la version 1.0.0 dans son nom.
-COPY --from=builder /build/target/projet-validation-vermeg-1.0.0.jar /app/application.jar
+COPY --from=builder /build/target/projet-validation-vermeg.jar /app/application.jar
 
 EXPOSE 8080
 
@@ -78,9 +77,6 @@ EXPOSE 8080
 # DÉFAUT VAL-K10 — aucune HEALTHCHECK, alors que l'application expose un
 # contrat de santé déterministe sur /health.
 
-RUN addgroup -S appgroup && adduser -S -D -G appgroup appuser
-USER appuser
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:8080/actuator/health || exit 1
 ENTRYPOINT ["java", "-Dapp.bind=0.0.0.0", \
             "-cp", "/app/application.jar:/app/dependencies/*", \
             "tn.vermeg.validation.App"]
