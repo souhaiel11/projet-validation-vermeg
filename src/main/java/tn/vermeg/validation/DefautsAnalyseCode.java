@@ -28,11 +28,17 @@ public class DefautsAnalyseCode {
   // VAL-S10 — java:S2068 : identifiant codé en dur.
   private static final String MOT_DE_PASSE = "Vermeg#Secret2026!";
 
+  // VAL-S11 — java:S1313 : adresse IP codée en dur.
+  private static final String HOTE_INTERNE = "10.42.17.3";
+
   // VAL-S12 — java:S1444 / java:S2386 : champ public statique mutable non final.
   public static String[] cacheEtiquettes = new String[16];
 
   // VAL-S13 — java:S1104 : champ d'instance public (encapsulation absente).
   public int compteurAcces;
+
+  // VAL-S14 — java:S1068 : champ privé jamais lu.
+  private final long horodatageInitial = System.currentTimeMillis();
 
   /**
    * VAL-S15 — java:S4790 : empreinte par MD5, algorithme de hachage faible.
