@@ -22,7 +22,6 @@ devSecOpsPipeline {
     // Etape Build fournie par le projet, VISIBLE et corrigeable par WF4.
     buildCommand = """
         set -e
-        chmod +x mvnw
-        ./mvnw clean package -B -DskipTests=false
+        mvn clean package -B -DskipTests=false
     """
 }
