@@ -44,7 +44,7 @@
          ║ Provenance PROPERTY_MANAGED : la plateforme doit corriger CETTE  ║
          ║ propriété, pas une version écrite en dur dans <dependency>.      ║
          ╚══════════════════════════════════════════════════════════════════╝ -->
-    <commons-lang3.version>3.12.0</commons-lang3.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
   </properties>
 
   <dependencies>
