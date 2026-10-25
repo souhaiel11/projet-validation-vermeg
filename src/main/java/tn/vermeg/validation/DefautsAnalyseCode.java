@@ -70,11 +70,25 @@ public class DefautsAnalyseCode {
   /**
    * VAL-S19 — java:S3649 : requête SQL construite par concaténation d'une
    * entrée (injection SQL). Le chemin n'est jamais exécuté dans ce projet.
+   *
+   * <p>Le {@link Statement} est désormais libéré de façon déterministe :
+   * il est marqué {@code closeOnCompletion()} afin d'être fermé avec le
+   * {@link ResultSet} rendu à l'appelant, et fermé immédiatement si
+   * l'exécution de la requête échoue.
    */
   public ResultSet rechercheContrat(Connection cx, String saisieUtilisateur) throws SQLException {
     String sql = "SELECT * FROM contrats WHERE libelle = '" + saisieUtilisateur + "'";
     Statement st = cx.createStatement();
-    return st.executeQuery(sql);
+    try {
+      st.closeOnCompletion();
+      return st.executeQuery(sql);
+    } catch (SQLException e) {
+      st.close();
+      throw e;
+    } catch (RuntimeException e) {
+      st.close();
+      throw e;
+    }
   }
 
   /**
