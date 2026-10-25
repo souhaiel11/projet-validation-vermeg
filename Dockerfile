@@ -53,7 +53,8 @@ WORKDIR /app
 # l'historique de l'image par quiconque peut la tirer du registre, même si une
 # couche ultérieure l'écrase. La valeur ci-dessous est factice et n'ouvre aucun
 # accès ; le défaut porte sur le mécanisme, pas sur le secret.
-ENV VALIDATION_API_TOKEN=""
+ARG VALIDATION_API_TOKEN
+ENV VALIDATION_API_TOKEN=${VALIDATION_API_TOKEN}
 
 # DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
 # l'image et l'alourdit inutilement.
