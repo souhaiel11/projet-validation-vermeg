@@ -46,6 +46,13 @@ LABEL org.opencontainers.image.title="projet-validation-vermeg" \
 
 WORKDIR /app
 
+# DÉFAUT VAL-K06 — valeur sensible inscrite dans une couche d'image.
+# Une variable d'environnement définie à la construction reste lisible dans
+# l'historique de l'image par quiconque peut la tirer du registre, même si une
+# couche ultérieure l'écrase. La valeur ci-dessous est factice et n'ouvre aucun
+# accès ; le défaut porte sur le mécanisme, pas sur le secret.
+ENV VALIDATION_API_TOKEN="demo-token-non-reel-0000000000"
+
 # DÉFAUT VAL-K07 — `apk add` sans `--no-cache` : l'index des paquets reste dans
 # l'image et l'alourdit inutilement.
 # DÉFAUT VAL-K08 — deux instructions RUN là où une seule suffirait : deux
@@ -59,7 +66,7 @@ RUN apk add --update wget
 # fermeture de sécurité confirmée par deux scanners devient indémontrable.
 COPY --from=builder /build/target/runtime/ /app/dependencies/
 # DÉFAUT VAL-K11 : le JAR Maven inclut la version 1.0.0 dans son nom.
-COPY --from=builder /build/target/projet-validation-vermeg-1.0.0.jar /app/application.jar
+COPY --from=builder /build/target/projet-validation-vermeg.jar /app/application.jar
 
 EXPOSE 8080
 
@@ -69,9 +76,6 @@ EXPOSE 8080
 
 # DÉFAUT VAL-K10 — aucune HEALTHCHECK, alors que l'application expose un
 # contrat de santé déterministe sur /health.
-
-RUN addgroup -S appgroup && adduser -S -D -G appgroup appuser
-USER appuser
 
 ENTRYPOINT ["java", "-Dapp.bind=0.0.0.0", \
             "-cp", "/app/application.jar:/app/dependencies/*", \
