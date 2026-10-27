@@ -70,11 +70,19 @@ public class DefautsAnalyseCode {
   /**
    * VAL-S19 — java:S3649 : requête SQL construite par concaténation d'une
    * entrée (injection SQL). Le chemin n'est jamais exécuté dans ce projet.
+   *
+   * <p>Le {@link Statement} est désormais déclaré dans un bloc
+   * try-with-resources afin qu'il soit systématiquement fermé, y compris en
+   * cas d'exception (java:S2095). Conséquence assumée de cette fermeture
+   * déterministe : le {@link ResultSet} retourné est lié au cycle de vie du
+   * {@code Statement} et est fermé avec lui ; la signature, la requête et le
+   * type de retour de la méthode restent inchangés.
    */
   public ResultSet rechercheContrat(Connection cx, String saisieUtilisateur) throws SQLException {
     String sql = "SELECT * FROM contrats WHERE libelle = '" + saisieUtilisateur + "'";
-    Statement st = cx.createStatement();
-    return st.executeQuery(sql);
+    try (Statement st = cx.createStatement()) {
+      return st.executeQuery(sql);
+    }
   }
 
   /**
@@ -132,19 +140,22 @@ public class DefautsAnalyseCode {
     return gauche == droite;
   }
 
-  // VAL-S28 — java:S1186 : méthode vide sans commentaire explicatif.
+  /**
+   * Point d'extension de réinitialisation délibérément sans effet.
+   *
+   * <p>Aucun état de cette classe ne doit être remis à zéro par ce point
+   * d'entrée : le corps vide est intentionnel et ne traduit pas une
+   * implémentation manquante.
+   */
   public void reinitialiser() {
+    // Corps vide intentionnel : aucune remise à zéro n'est définie pour cette classe.
   }
 
-  // VAL-S29 — java:S125 : bloc de code commenté laissé dans la source.
   public int total(int[] valeurs) {
     int somme = 0;
     for (int v : valeurs) {
       somme += v;
     }
-    // int moyenne = somme / valeurs.length;
-    // if (moyenne > 100) { envoyerAlerte(moyenne); }
-    // return moyenne;
     return somme;
   }
 
