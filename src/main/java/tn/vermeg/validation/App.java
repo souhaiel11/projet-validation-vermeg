@@ -99,22 +99,124 @@ public final class App {
      * de configuration web n'est qualifiée dans la chaîne.</p>
      */
     public static String accueil() {
-        return """
-            <!doctype html>
-            <html lang="fr">
-            <head><meta charset="utf-8"><title>Projet de validation VERMEG</title></head>
-            <body>
-              <h1>Projet de validation VERMEG</h1>
-              <p><strong>Application intentionnellement vulnerable — banc d'essai uniquement.</strong></p>
-              <ul>
-                <li><a href="/health">/health</a></li>
-                <li><a href="/api/info">/api/info</a></li>
-                <li><a href="/api/contrats">/api/contrats</a></li>
-              </ul>
-            </body>
-            </html>
-            """;
+        List<Contrat> contrats = CatalogueContrats.tous();
+        long valeurTotale = CatalogueContrats.valeurTotaleCentimes();
+        int partsTotales = contrats.stream().mapToInt(Contrat::parts).sum();
+        StringBuilder lignes = new StringBuilder();
+        for (Contrat c : contrats) {
+            lignes.append("<tr><td class=\"id\">").append(EtiquetteHtml.echappe(c.id()))
+                .append("</td><td>").append(EtiquetteHtml.echappe(c.libelle()))
+                .append("</td><td>").append(EtiquetteHtml.echappe(c.souscripteur()))
+                .append("</td><td class=\"num\">").append(montant(c.primeAnnuelleCentimes()))
+                .append("</td><td class=\"num\">").append(c.parts())
+                .append("</td><td class=\"num fort\">").append(montant(c.valeurTotaleCentimes()))
+                .append("</td></tr>");
+        }
+        return PAGE_ACCUEIL
+            .replace("{{VERSION}}", EtiquetteHtml.echappe(VERSION_APPLICATION))
+            .replace("{{ENVIRONNEMENT}}", EtiquetteHtml.echappe(DescripteurYaml.texte("environnement", "banc-essai")))
+            .replace("{{NOMBRE}}", String.valueOf(contrats.size()))
+            .replace("{{VALEUR}}", montant(valeurTotale))
+            .replace("{{PARTS}}", String.valueOf(partsTotales))
+            .replace("{{LIGNES}}", lignes.toString());
     }
+
+    /** Montant en centimes affiché « 12 345,67 » (séparateur de milliers : espace insécable). */
+    static String montant(long centimes) {
+        String entier = String.format(java.util.Locale.ROOT, "%,d", centimes / 100).replace(',', '\u00a0');
+        return entier + "," + String.format(java.util.Locale.ROOT, "%02d", Math.abs(centimes % 100));
+    }
+
+    private static final String PAGE_ACCUEIL = """
+        <!doctype html>
+        <html lang="fr">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Projet de validation VERMEG — Portefeuille de contrats</title>
+        <style>
+          :root{--bleu:#0b2e59;--bleu2:#14549b;--accent:#e4002b;--fond:#f4f6fa;--carte:#fff;--texte:#1d2633;--doux:#5c6b7f;--bord:#dfe4ec;--vert:#1f8a4c}
+          *{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--fond);color:var(--texte)}
+          header{background:linear-gradient(120deg,var(--bleu),var(--bleu2));color:#fff;padding:28px 6vw 70px}
+          .marque{display:flex;align-items:center;gap:14px;font-weight:700;letter-spacing:.14em;font-size:15px}
+          .logo{width:38px;height:38px;border-radius:9px;background:#fff;color:var(--bleu);display:grid;place-items:center;font-size:20px;font-weight:800;letter-spacing:0}
+          h1{margin:26px 0 8px;font-size:clamp(24px,3.4vw,36px);font-weight:600}
+          .sous{margin:0;opacity:.85;font-size:15px;max-width:720px}
+          .pastilles{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+          .pastille{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 13px;font-size:13px}
+          .pastille.ok::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#4ade80;margin-right:7px}
+          main{padding:0 6vw 40px;margin-top:-44px}
+          .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+          .kpi{background:var(--carte);border-radius:12px;padding:20px 22px;box-shadow:0 6px 20px rgba(11,46,89,.08);border-top:4px solid var(--bleu2)}
+          .kpi:nth-child(2){border-top-color:var(--accent)}.kpi:nth-child(3){border-top-color:var(--vert)}
+          .kpi .lib{color:var(--doux);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+          .kpi .val{font-size:28px;font-weight:700;margin-top:6px}
+          section{background:var(--carte);border-radius:12px;box-shadow:0 6px 20px rgba(11,46,89,.06);margin-top:22px;padding:22px 24px}
+          h2{margin:0 0 14px;font-size:18px;color:var(--bleu)}
+          .table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+          th{text-align:left;color:var(--doux);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:2px solid var(--bord)}
+          td{padding:12px;border-bottom:1px solid var(--bord)}tr:hover td{background:#f8fafd}
+          .num{text-align:right;font-variant-numeric:tabular-nums}.fort{font-weight:700;color:var(--bleu)}.id{font-family:Consolas,monospace;color:var(--bleu2)}
+          .api{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+          .api a{display:block;border:1px solid var(--bord);border-radius:10px;padding:14px 16px;text-decoration:none;color:var(--texte)}
+          .api a:hover{border-color:var(--bleu2);box-shadow:0 4px 14px rgba(20,84,155,.12)}
+          .api code{color:var(--bleu2);font-weight:600}.api span{display:block;color:var(--doux);font-size:13px;margin-top:4px}
+          .chaine{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px}
+          .etape{background:#eef3fa;color:var(--bleu);border-radius:8px;padding:7px 12px;font-weight:600}.fleche{color:var(--doux)}
+          footer{padding:18px 6vw 30px;color:var(--doux);font-size:12.5px}
+          .avert{display:inline-block;margin-top:6px;color:var(--accent);font-weight:600}
+        </style>
+        </head>
+        <body>
+        <header>
+          <div class="marque"><div class="logo">V</div>VERMEG · PROJET DE VALIDATION</div>
+          <h1>Portefeuille de contrats d'assurance</h1>
+          <p class="sous">Application de démonstration construite, analysée et déployée automatiquement par la plateforme DevSecOps.</p>
+          <div class="pastilles">
+            <span class="pastille ok">Service opérationnel</span>
+            <span class="pastille">Version {{VERSION}}</span>
+            <span class="pastille">Environnement : {{ENVIRONNEMENT}}</span>
+            <span class="pastille">Azure Container Instances</span>
+          </div>
+        </header>
+        <main>
+          <div class="kpis">
+            <div class="kpi"><div class="lib">Contrats</div><div class="val">{{NOMBRE}}</div></div>
+            <div class="kpi"><div class="lib">Valeur du portefeuille</div><div class="val">{{VALEUR}}</div></div>
+            <div class="kpi"><div class="lib">Parts détenues</div><div class="val">{{PARTS}}</div></div>
+          </div>
+          <section>
+            <h2>Contrats en portefeuille</h2>
+            <div class="table"><table>
+              <thead><tr><th>Référence</th><th>Produit</th><th>Souscripteur</th><th class="num">Prime annuelle</th><th class="num">Parts</th><th class="num">Valeur</th></tr></thead>
+              <tbody>{{LIGNES}}</tbody>
+            </table></div>
+          </section>
+          <section>
+            <h2>Points d'accès de l'API</h2>
+            <div class="api">
+              <a href="/health"><code>/health</code><span>Contrat de santé utilisé par le déploiement</span></a>
+              <a href="/api/info"><code>/api/info</code><span>Version et environnement de l'application</span></a>
+              <a href="/api/contrats"><code>/api/contrats</code><span>Portefeuille complet au format JSON</span></a>
+              <a href="/api/contrats/CTR-0001"><code>/api/contrats/CTR-0001</code><span>Détail d'un contrat</span></a>
+            </div>
+          </section>
+          <section>
+            <h2>Chaîne de livraison</h2>
+            <div class="chaine">
+              <span class="etape">GitHub</span><span class="fleche">→</span><span class="etape">Jenkins</span><span class="fleche">→</span>
+              <span class="etape">SonarQube · Trivy · OWASP · ZAP</span><span class="fleche">→</span><span class="etape">Azure Container Registry</span>
+              <span class="fleche">→</span><span class="etape">Azure Container Instances</span>
+            </div>
+          </section>
+        </main>
+        <footer>
+          Données synthétiques en mémoire — aucune donnée réelle.<br>
+          <span class="avert">Application intentionnellement vulnérable — banc d'essai uniquement.</span>
+        </footer>
+        </body>
+        </html>
+        """;
 
     // ── Transport ───────────────────────────────────────────────────────────
 
