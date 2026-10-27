@@ -71,12 +71,12 @@ public class DefautsAnalyseCode {
    * VAL-S19 — java:S3649 : requête SQL construite par concaténation d'une
    * entrée (injection SQL). Le chemin n'est jamais exécuté dans ce projet.
    *
-   * <p>Le {@link Statement} est désormais déclaré dans un bloc
-   * try-with-resources afin qu'il soit systématiquement fermé, y compris en
-   * cas d'exception (java:S2095). Conséquence assumée de cette fermeture
-   * déterministe : le {@link ResultSet} retourné est lié au cycle de vie du
-   * {@code Statement} et est fermé avec lui ; la signature, la requête et le
-   * type de retour de la méthode restent inchangés.
+   * <p>Le {@link Statement} est déclaré dans un bloc try-with-resources afin
+   * qu'il soit systématiquement fermé, y compris en cas d'exception
+   * (java:S2095). Conséquence assumée de cette fermeture déterministe : le
+   * {@link ResultSet} retourné est lié au cycle de vie du {@code Statement} et
+   * est fermé avec lui ; la signature, la requête et le type de retour de la
+   * méthode restent inchangés.
    */
   public ResultSet rechercheContrat(Connection cx, String saisieUtilisateur) throws SQLException {
     String sql = "SELECT * FROM contrats WHERE libelle = '" + saisieUtilisateur + "'";
@@ -148,7 +148,7 @@ public class DefautsAnalyseCode {
    * implémentation manquante.
    */
   public void reinitialiser() {
-    // Corps vide intentionnel : aucune remise à zéro n'est définie pour cette classe.
+    // Cette classe ne définit aucun état réinitialisable, donc ce corps vide est voulu
   }
 
   public int total(int[] valeurs) {
